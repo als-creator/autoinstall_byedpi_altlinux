@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altl
 
 Файл настроек находится по пути:
 
-/etc/byedpi.conf
+/etc/sysconfig/byedpi
 
 В нем настроены параметры запуска ByeDPI, включая адрес для прослушивания и правила для доменов.
 
