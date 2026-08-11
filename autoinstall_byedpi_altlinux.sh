@@ -23,7 +23,7 @@ sudo apt-get install -y byedpi >/dev/null 2>&1 || {
 echo "Создаем конфигурационный файл..."
 cat > /tmp/byedpi_config << 'EOF'
 # Параметры для byedpi
-BYEDPI_ARGS="-i 127.0.0.1 --port 14228 -Kt,h -s0 -o1 -Ar -o1 -At -f-1 --md5sig -r1+s -As,n -Ku -a5 -An"
+BYEDPI_ARGS="-i 127.0.0.1 --port 14228 -d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -r1+s -S -a1 -As -d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -S -a1"
 EOF
 sudo bash -c "cat /tmp/byedpi_config > /etc/sysconfig/byedpi"
 rm -f /tmp/byedpi_config
