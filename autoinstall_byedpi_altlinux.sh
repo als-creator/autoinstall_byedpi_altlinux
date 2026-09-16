@@ -133,25 +133,40 @@ install_packages(){
   if [ ! -x "$CIADPI" ]; then
     log_warn "Пакета нет — скачиваю ciadpi с GitHub (hufrea/byedpi releases)."
     case "$(uname -m)" in
-      x86_64)        ARCH=x86_64 ;;
-      aarch64|arm64) ARCH=aarch64 ;;
-      armv7*|armhf)  ARCH=armv7l ;;
-      armv6*)        ARCH=armv6 ;;
-      i686|x86)      ARCH=i686 ;;
-      mips)          ARCH=mips ;;
-      mipsel)        ARCH=mipsel ;;
-      powerpc|ppc*)  ARCH=powerpc ;;
+      x86_64)        ARCH=x86_64;  TOKS="x86_64 amd64" ;;
+      aarch64|arm64) ARCH=aarch64; TOKS="aarch64 arm64" ;;
+      armv7*|armhf)  ARCH=armv7l;  TOKS="armv7l armv7 armhf" ;;
+      armv6*)        ARCH=armv6;   TOKS="armv6" ;;
+      i686|x86)      ARCH=i686;    TOKS="i686 386" ;;
+      mips)          ARCH=mips;    TOKS="mips" ;;
+      mipsel)        ARCH=mipsel;  TOKS="mipsel" ;;
+      powerpc|ppc*)  ARCH=powerpc; TOKS="powerpc ppc" ;;
       *) log_err "Незнакомая архитектура: $(uname -m)" ;;
     esac
-    latest=$(curl -fsSL --max-time 20 https://api.github.com/repos/hufrea/byedpi/releases/latest 2>/dev/null \
-             | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    api=$(curl -fsSL --max-time 30 https://api.github.com/repos/hufrea/byedpi/releases/latest 2>/dev/null || true)
+    latest=$(printf '%s' "$api" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
     [ -n "$latest" ] || latest=v0.17.3
-    ver=$(printf '%s' "$latest" | tr -d 'v')
-    url="https://github.com/hufrea/byedpi/releases/download/$latest/byedpi-$ver-$ARCH.tar.gz"
+    urls=""
+    for tok in $TOKS; do
+      u=$(printf '%s' "$api" \
+          | grep -o '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]*"' \
+          | sed 's/.*"\(https[^"]*\)".*/\1/' \
+          | grep -i -- "$tok" | grep -Ei '\.(tar\.gz|tgz)$' | head -1)
+      [ -n "$u" ] && { urls="$u"; break; }
+    done
+    if [ -z "$urls" ]; then
+      ver=$(printf '%s' "$latest" | tr -d 'v')
+      urls="https://github.com/hufrea/byedpi/releases/download/$latest/byedpi-${ver#0.}-$ARCH.tar.gz
+            https://github.com/hufrea/byedpi/releases/download/$latest/byedpi-$ver-$ARCH.tar.gz"
+    fi
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
-    log_ok "Скачиваю: $url"
-    curl -fsSL --max-time 120 -o "$tmpdir/byedpi.tgz" "$url" || log_err "Не удалось скачать $url"
+    ok=
+    for u in $urls; do
+      log_ok "Скачиваю: $u"
+      if curl -fsSL --max-time 120 -o "$tmpdir/byedpi.tgz" "$u"; then ok=1; break; fi
+    done
+    [ -n "$ok" ] || log_err "Не удалось скачать ciadpi (пробовал: $urls)"
     tar -xzf "$tmpdir/byedpi.tgz" -C "$tmpdir" || log_err "Не удалось распаковать архив"
     bin=$(find "$tmpdir" -maxdepth 1 -type f -name 'ciadpi*' | head -1)
     [ -n "$bin" ] || log_err "В архиве нет ciadpi"
