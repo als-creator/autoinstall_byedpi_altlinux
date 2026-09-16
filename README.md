@@ -21,14 +21,24 @@
 ### Что делает скрипт
 
 1. Обновляет список пакетов (`apt-get update`).
-2. Устанавливает пакет `byedpi` (и `ipset`, если выбран ipset-режим).
-3. Пишет конфигурацию ByeDPI с предустановленными параметрами (путь зависит от
-   выбранного режима, см. ниже).
-4. Создаёт systemd-сервисы: сам демон, а для ipset-режима ещё и правила
-   перенаправления + таймер обновления списка доменов.
-5. Включает автозапуск и выводит статус.
+2. Устанавливает пакет `byedpi` через `apt-get`; если пакета нет — скачивает
+   готовый бинарник `ciadpi` с GitHub (hufrea/byedpi releases).
+3. Пишет конфигурацию отдельными файлами: `/etc/byedpi/port`, `/etc/byedpi/rule`,
+   `/etc/byedpi/hosts` и управляющий `/etc/byedpi/conf` с переменными-указателями
+   на эти файлы (для user-режима — в `~/.config/byedpi/`).
+4. При первой установке **сам подбирает стратегию**: прогоняет список доменов
+   через несколько кандидатов правил desync и записывает лучшее в `rule`
+   (пересборка — командой `--test`).
+5. Создаёт systemd-сервисы: сам демон (через launcher `byedpi-start`, собирающий
+   опции ciadpi из отдельных файлов при каждом старте), а для ipset-режима ещё
+   и правила перенаправления REDIRECT.
+6. Включает автозапуск и выводит статус.
 
 Демон слушает на `127.0.0.1:<порт>` (по умолчанию `14228`).
+
+> **Права root:** в ALT обычно нет `sudo`, поэтому скрипт повышает права через
+> `su -s /bin/sh -c '...' root` (будет запрошен пароль root). Если `sudo`
+> установлен — используется он.
 
 ---
 
@@ -36,36 +46,38 @@
 
 ### Автоматическая установка
 
-Скрипт спрашивает два вопроса (или можно задать их флагами):
+Скрипт не интерактивный: значения задаются флагами (по умолчанию
+`--system --extension`):
 
 1. **Куда установить** — `--system` (все пользователи) или `--user` (только для текущего пользователя)
-2. **Как использовать** — `--ipset` (без расширений, только домены из списка) или `--extension` (SOCKS-прокси для расширения браузера)
+2. **Как использовать** — `--ipset` (весь TCP 80/443 через ByeDPI, фильтр по SNI) или `--extension` (SOCKS-прокси для расширения браузера)
 
 Интерактивно:
 
 ```bash
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh)
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh
 ```
 
 С флагами (не требуют ввода):
 
 ```bash
 # для всех пользователей, без расширений (только домены из hostlist)
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --system --ipset
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --system --ipset
 
 # для всех пользователей, SOCKS-прокси для расширения браузера
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --system --extension
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --system --extension
 
 # только для текущего пользователя, без расширений
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --user --ipset
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --user --ipset
 
 # только для текущего пользователя, SOCKS-прокси для расширения браузера
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --user --extension
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --user --extension
 ```
 
 > Скрипт собирается устанавливать пакет `byedpi` через `apt-get` из репозиторов
-> ALT Linux (Sisyphus). Если пакет не найден — повторяет `apt-get update` и
-> пробует ещё раз.
+> ALT Linux (Sisyphus). Если пакета нет в вашей ветке — автоматически
+> скачивается бинарник `ciadpi` с GitHub; права для установки поднимаются через
+> `su -s /bin/sh -c '...' root` (без sudo).
 
 ---
 
@@ -74,17 +86,18 @@ sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi
 ### Статус
 
 ```bash
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --status
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --status
 ```
 
 ### Полное отключение (удаление правил и сервисов)
 
 ```bash
-sh <(curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh) --off
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --off
 ```
 
-Останавливает и удаляет сервисы, таймеры, правила iptables/ipset (и system-, и
-user-режимов). Конфиги при этом не удаляются — остаются по путям ниже.
+Останавливает и удаляет сервисы, правила iptables/ipset (и system-, и
+user-режимов), таймеры и конфиг-каталоги `/etc/byedpi` / `~/.config/byedpi`,
+а также чистит следы старых версий (`/etc/sysconfig/byedpi` и пр.).
 
 ### Сервис вручную
 
@@ -108,21 +121,18 @@ systemctl --user restart byedpi
 
 ### system (для всех пользователей)
 
-- конфиг: `/etc/sysconfig/byedpi`
-- hostlist: `/etc/byedpi-hosts.txt` (для ipset-режима)
-- демон: systemd-сервис `byedpi.service`
+- конфиг-каталог: `/etc/byedpi/` — `conf`, `rule`, `port`, `hosts`
+- демон: systemd-сервис `byedpi.service` (`ExecStart=/usr/local/bin/byedpi-start`)
 - порт: `14228`
 
 ### user (только для текущего пользователя)
 
-- конфиг: `~/.config/byedpi.conf`
-- hostlist: `~/.config/byedpi-hosts.txt` (для ipset-режима)
-- демон: systemd-**user**-сервис `byedpi.service` (запускается при входе)
+- конфиг-каталог: `~/.config/byedpi/` — `conf`, `rule`, `port`, `hosts`
+- демон: для ipset — root-юнит `byedpi-<uid>.service` + REDIRECT
+  `byedpi-redirect-<uid>.service` (трафик только этого пользователя через
+  `--uid-owner`, hostlist/конфиг остаются в `~/.config`); для extension —
+  systemd-**user**-сервис `byedpi.service` (запускается при входе)
 - порт для каждого пользователя свой: `14228 + (uid - 1000)`, чтобы юзеры не конфликтовали
-- для ipset-режима сгенерированный ipset и правила REDIRECT привязаны к `--uid-owner`
-  этого пользователя и затрагивают только его трафик (сам ipset живёт в ядре,
-  поэтому корневые unit-ы `byedpi-hosts-<uid>` / `byedpi-redirect-<uid>` всё же
-  создаются в `/etc/systemd/system`, но читают hostlist из `~/.config`)
 
 Каждый пользователь может запустить скрипт повторно со своими `--user` флагами,
 не затрагивая остальных.
@@ -140,14 +150,16 @@ systemctl --user restart byedpi
 
 ### ipset — работа без расширений
 
-Домены из hostlist резолвятся в IP и складываются в ipset. Правило `iptables -t nat`
-`REDIRECT` матчит ТОЛЬКО пакеты, чей адрес назначения есть в этом ipset
-(порты 80/443, TCP), и заворачивает их в локальный порт ByeDPI. Остальной трафик
-идёт напрямую. ipset обновляется таймером каждый час.
+Правило `iptables -t nat` `REDIRECT` (порты 80/443, TCP) заворачивает **весь**
+исходящий трафик в локальный порт ByeDPI. Дальше ByeDPI смотрит на SNI (домен)
+в TLS-запросе и десинхронизирует только те соединения, чей домен есть в
+hostlist — как это делает расширение в SOCKS-режиме. Это надёжно работает и для
+CDN-доменов (googlevideo), у которых тысячи IP: фильтр идёт по домену, а не по
+IP, поэтому ipset и таймер обновления не нужны. Остальной трафик идёт напрямую.
 
 ```bash
-sudo nano /etc/byedpi-hosts.txt        # или ~/.config/byedpi-hosts.txt для user
-sudo systemctl restart byedpi-hosts byedpi-redirect
+nano /etc/byedpi/hosts        # или ~/.config/byedpi/hosts для user
+/etc/init.d/byedpi restart    # или: systemctl restart byedpi
 ```
 
 ### extension — SOCKS-прокси
@@ -158,41 +170,48 @@ ByeDPI поднимает SOCKS на `127.0.0.1:<порт>`. Настройте 
 
 ---
 
-## Как изменить список доменов
+## Как изменить настройки
 
-### ipset-режим (без расширений)
+Порт, правило desync и список доменов лежат в **отдельных файлах** — менять их
+можно по одному, не трогая остальные:
 
-Отредактируйте hostlist и перезапустите сервисы:
+| Что настраиваем | system | user |
+|---|---|---|
+| список доменов | `/etc/byedpi/hosts` | `~/.config/byedpi/hosts` |
+| стратегия desync | `/etc/byedpi/rule` | `~/.config/byedpi/rule` |
+| порт | `/etc/byedpi/port` | `~/.config/byedpi/port` |
+| управляющий конфиг | `/etc/byedpi/conf` | `~/.config/byedpi/conf` |
 
-```bash
-sudo nano /etc/byedpi-hosts.txt                                # system
-sudo systemctl restart byedpi-hosts byedpi-redirect
-
-nano ~/.config/byedpi-hosts.txt                                # user
-systemctl --user restart byedpi-hosts byedpi-redirect          # user
-```
-
-Изменения ipset пересоберутся автоматически либо по таймеру (раз в час), либо
-при перезапуске сервисов.
-
-### extension-режим
-
-Список доменов хранится в расширении браузера. Правьте его через интерфейс
-расширения или восстановите готовый бэкап из репозитория. Изменения конфига:
+`conf` — управляющий файл с **переменными-указателями** на `rule`/`port`/`hosts`.
+Демон запускается через launcher `byedpi-start`, который при каждом старте
+читает эти файлы и собирает опции ciadpi — правки вступают в силу перезапуском
+сервиса без переустановки.
 
 ```bash
-sudo nano /etc/sysconfig/byedpi            # system
-sudo systemctl restart byedpi
-
-nano ~/.config/byedpi.conf                 # user
-systemctl --user restart byedpi            # user
+nano /etc/byedpi/hosts                  # изменить список доменов
+/etc/init.d/byedpi restart              # без systemd
+systemctl restart byedpi                # systemd / system-режим
 ```
 
-### Смена стратегии desync
+### Смена стратегии desync (автоподбор)
 
-Параметры стратегии лежат в файле `BYEDPI_OPTIONS` внутри конфига. Готовые
-стратегии можно взять из файла `Стратегии byedpi.txt` в репозитории — подставьте
-нужную строку в конфиг и перезапустите сервис.
+Правило лежит в файле `rule` одной строкой. Готовые варианты — в файле
+`Стратегии byedpi.txt` репозитория:
+
+```bash
+nano /etc/byedpi/rule
+systemctl restart byedpi                # или /etc/init.d/byedpi restart
+```
+
+**Автоподбор:** при первой установке (и по команде `--test`) скрипт прогоняет
+список доменов через нескольких кандидатов правил и записывает в `rule` то,
+которое открывает больше всего ресурсов из списка:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --test
+```
+
+Пропустить автоподбор при установке можно флагом `--no-test`.
 
 ---
 
@@ -223,7 +242,8 @@ YouTube) не обрабатывается — при необходимости
 ## Безопасность
 
 - Запрещает запуск от root (чтобы избежать непредвиденных проблем).
-- Проверяет, есть ли у текущего пользователя права sudo.
+- Повышает права автоматически: от root напрямую, иначе через `sudo`, иначе
+  через `su -s /bin/sh -c '...' root` (ALT без sudo).
 - В ipset-режиме отсекает служебные подсети (локальные адреса) от
   перенаправления, чтобы не заворачивать собственный трафик.
 
