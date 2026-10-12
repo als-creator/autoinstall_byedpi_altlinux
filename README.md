@@ -319,14 +319,37 @@ sudo systemctl restart byedpi
 ```
 
 **Автоподбор:** при первой установке (и по команде `--test`) скрипт прогоняет
-список доменов через нескольких кандидатов правил и записывает в `rule` то,
-которое открывает больше всего ресурсов из списка:
+минимальный набор доменов (rutracker, nnm-club, YouTube, rutor, Telegram)
+через нескольких кандидатов правил и записывает в `rule` то, которое открывает
+больше всего из них:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --test
 ```
 
 Пропустить автоподбор при установке можно флагом `--no-test`.
+
+Проверить, что открывается прямо сейчас:
+
+```bash
+sh /tmp/byedpi-alt.sh --check
+```
+
+| вердикт | что означает | что делать |
+|---|---|---|
+| `OK (код)` | ресурс открывается | ничего |
+| `FAIL (домен есть в hosts, правило не помогает)` | домен в списке desync, но не открывается | сменить правило (`--test`) |
+| `FAIL (напрямую открывается, но домена нет в hosts)` | домен забыт в списке | дописать в `hosts`, перезапустить демон |
+| `FAIL (и напрямую не открывается — вероятна блокировка по IP)` | RST сразу после connect | desync/SNI **не поможет**, нужен другой доступ |
+
+Telegram (DC-адреса `149.154.160.0/20`, `91.108.4.0/22`, `95.161.76.0/22`) и
+зеркала rutor часто режутся именно по IP — тогда ClientHello не при чём.
+
+**Про Telegram отдельно.** С 05.06.2026 Telegram режет по JA3-отпечатку TLS
+ClientHello и по числу одновременных соединений (ntc.party, «MTProto в 2026
+году»; подтверждено разработчиками telemt). Отпечаток desync/fake/split не
+меняет, поэтому лечится только прокси (MTProto/FakeTLS), VPN или клиентом с
+`tdlib-obf`.
 
 ---
 
@@ -367,12 +390,14 @@ YouTube) не обрабатывается — при необходимости
 ## Полный список флагов
 
 ```
-Использование: autoinstall_byedpi_altlinux.sh [--system|--user] [--ipset|--extension] [--off|--status|--test] [--port N] [--no-test]
+Использование: autoinstall_byedpi_altlinux.sh [--system|--user] [--ipset|--extension] [--off|--status|--test|--check] [--port N] [--no-test]
   --system        установить для всех пользователей (конфиг /etc/byedpi/)
   --user          установить только для текущего пользователя
   --ipset         метод ipset: весь TCP 80/443 через ByeDPI, фильтр по SNI
   --extension     метод extension: SOCKS-прокси для браузерного расширения
   --test          перезапустить автотест стратегий и обновить rule
+  --check         проверить минимальный набор доменов (youtube/rutor/rutracker/
+                  nnm-club/telegram) и сказать, что именно не открывается
   --no-test       пропустить автотест стратегий при установке
   --off | --remove  отключить, удалить сервисы, правила и конфиги
   --status|--info   показать текущее состояние
