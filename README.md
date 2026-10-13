@@ -364,11 +364,17 @@ JA3-отпечатку TLS ClientHello и по числу одновременн
 - SmartProxy
 - Proxy SwitchyOmega 3
 
-Готовый бэкап настроек SwitchyOmega лежит в репозитории. Набор доменов покрывает
-страницы, плеер и превью YouTube: `*.youtube.com`, `*.googlevideo.com` (видео),
-`*.ytimg.com` / `i.ytimg.com` (превью и картинки), `yt3.ggpht.com` /
-`*.ggpht.com` / `yt3.googleusercontent.com` (аватары), а также rutracker,
-instagram, discord и др.
+Готовый бэкап настроек SwitchyOmega лежит в репозитории (63 правила, список
+синхронизирован с hosts-файлом byedpi). YouTube покрыт целиком: `*.youtube.com`,
+`*.googlevideo.com` (видео), `*.ytimg.com`, `yt3.ggpht.com`, `*.ggpht.com`,
+`yt3.googleusercontent.com`, `*.img.youtube.com`, `*.m.youtube.com`, `*.gstatic.com`,
+`*.googleusercontent.com`, `*.l.google.com`, `*.1e100.net`, `*.youtube.ru` —
+это то, что грузит плеер, превью и аватары. Плюс rutor, rutracker, nnm-club,
+discord и соцсети.
+
+Мёртвые домены вычищены: `archlinuxgui.in` (SERVFAIL) и `flibusta.lib` (NXDOMAIN)
+удалены, дубликат `*.habr.com` убран. Telegram в списке нет намеренно — он режется
+по JA3-отпечатку, прокси-расширение его тоже не спасёт (нужен MTProxy/FakeTLS или VPN).
 
 ---
 
