@@ -347,11 +347,12 @@ sh /tmp/byedpi-alt.sh --check
 rutor.info проходит примерно одна и при любом правиле desync. Блокировки по IP
 при этом нет — SYN-ACK приходит за 5 мс, RST прилетает уже на ClientHello.
 
-**Про Telegram отдельно.** С 05.06.2026 Telegram режет по JA3-отпечатку TLS
-ClientHello и по числу одновременных соединений (ntc.party, «MTProto в 2026
-году»; подтверждено разработчиками telemt). Отпечаток desync/fake/split не
-меняет, поэтому лечится только прокси (MTProto/FakeTLS), VPN или клиентом с
-`tdlib-obf`.
+**Почему Telegram нет в списках доменов.** С 05.06.2026 Telegram режет по
+JA3-отпечатку TLS ClientHello и по числу одновременных соединений (ntc.party,
+«MTProto в 2026 году»; подтверждено разработчиками telemt). Отпечаток не
+меняется от desync/fake/split, подмена SNI не помогает — проверено. Держать
+`telegram.org`/`t.me` в hostlist бессмысленно. Рабочие варианты: прокси
+(MTProto/FakeTLS), VPN или клиент с `tdlib-obf`.
 
 ---
 

@@ -33,8 +33,8 @@ usage(){
   --ipset         метод ipset: весь TCP 80/443 через ByeDPI, фильтр по SNI
   --extension     метод extension: SOCKS-прокси для браузерного расширения
   --test          перезапустить автотест стратегий и обновить rule
-  --check         проверить минимальный набор доменов (youtube/rutor/rutracker/
-                  nnm-club/telegram) и сказать, что именно не открывается
+  --check         проверить минимальный набор доменов (rutracker/nnm-club/
+                  youtube/rutor) и сказать, что именно не открывается
   --no-test       пропустить автотест стратегий при установке
   --off | --remove  отключить, удалить сервисы, правила и конфиги
   --status|--info   показать текущее состояние
@@ -197,9 +197,9 @@ probe_direct(){ # домен -> 0, если открывается "как ес�
 }
 
 # Минимальный набор доменов, который обязан открываться:
-#   rutor / rutracker / nnm-club / youtube / telegram
+#   rutor / rutracker / nnm-club / youtube
 # Именно по нему выбирается правило desync.
-TEST_PROBES="rutracker.org nnmclub.to www.youtube.com i.ytimg.com yt3.googleusercontent.com rutor.info telegram.org t.me web.telegram.org"
+TEST_PROBES="rutracker.org nnmclub.to www.youtube.com i.ytimg.com yt3.googleusercontent.com rutor.info"
 
 TEST_RULES="\
 long-strategy|-d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -r1+s -S -a1 -As -d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -S -a1
@@ -364,16 +364,6 @@ youtubei.googleapis.com
 youtube.googleapis.com
 yt3.googleusercontent.com
 news.google.com
-# Telegram
-telegram.org
-telegram.me
-web.telegram.org
-web.telegram.me
-t.me
-telegram.dog
-telegra.ph
-# CDN и служебные домены (проверено резолвом)
-# YouTube: apex-ы часто без A-записи, но нужны для матчинга поддоменов
 gstatic.com
 googleusercontent.com
 l.google.com
@@ -383,13 +373,6 @@ img.youtube.com
 yt3.ggpht.com
 yt4.ggpht.com
 youtube.ru
-# Telegram: клиенты и веб-приложения
-tdesktop.com
-telegramusercontent.com
-k.telegram.org
-webk.telegram.org
-telesco.pe
-# ---------------------------------------------------------------------------
 # Остальные домены (Discord, соцсети, архивы, обход блокировок)
 cdnbunny.org
 habr.com
