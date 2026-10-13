@@ -27,7 +27,7 @@ set -u
 
 usage(){
   cat <<EOF
-Использование: $0 [--system|--user] [--ipset|--extension] [--off|--status|--test|--check] [--port N] [--no-test]
+Использование: $0 [--system|--user] [--ipset|--extension] [--off|--status|--test|--check|--update] [--port N] [--no-test] [--keep-files]
   --system        установить для всех пользователей (конфиг /etc/byedpi/)
   --user          установить только для текущего пользователя
   --ipset         метод ipset: весь TCP 80/443 через ByeDPI, фильтр по SNI
@@ -36,6 +36,9 @@ usage(){
   --check         проверить минимальный набор доменов (rutracker/nnm-club/
                   youtube/rutor) и сказать, что именно не открывается
   --no-test       пропустить автотест стратегий при установке
+  --keep-files    не трогать существующие hosts/rule (по умолчанию они
+                  перезаписываются версией из скрипта, старое -> .bak-<дата>)
+  --update        обновить hosts/rule/launcher/юнит из скрипта и перезапустить
   --off | --remove  отключить, удалить сервисы, правила и конфиги
   --status|--info   показать текущее состояние
   --port N        изменить порт
@@ -55,7 +58,8 @@ log_err(){ echo "[ERROR] $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 SCOPE=""           # system | user
 METHOD=""          # ipset | extension
-ACTION="install"   # install | off | status | test
+ACTION="install"   # install | update | off | status | test | check
+KEEP_FILES=""      # --keep-files: не перезаписывать существующие hosts/rule
 ARG_PORT=""
 NO_TEST=""
 
@@ -69,6 +73,8 @@ for a in "$@"; do
     --status|--info) ACTION=status ;;
     --test|--retest) ACTION=test ;;
     --check)    ACTION=check ;;
+    --update|--upgrade) ACTION=update ;;
+    --keep-files) KEEP_FILES=1 ;;
     --no-test)    NO_TEST=1 ;;
     --help|-h)    usage ;;
     --port=*)     ARG_PORT="${a#*=}" ;;
@@ -315,6 +321,23 @@ wfile_root(){ # путь, содержимое — root нужен только 
   esac
 }
 
+# Копия файла перед перезаписью: имя.bak-YYYYmmdd-HHMMSS.
+backup_file(){ # путь -> путь к копии (stdout), код 1 если копии нет
+    f="$1"
+    [ -f "$f" ] || return 0
+    b="$f.bak-$(date +%Y%m%d-%H%M%S)"
+    case "$f" in
+        "$HOME"/*) cp -p "$f" "$b" 2>/dev/null || cp "$f" "$b" 2>/dev/null || true ;;
+        *)         run_root "cp -p '$f' '$b' 2>/dev/null || cp '$f' '$b' 2>/dev/null || true" ;;
+    esac
+    if [ -f "$b" ]; then
+        echo "$b"; return 0
+    fi
+    log_warn "Не удалось создать резервную копию $f (нет прав?) — будет перезаписано без бэкапа" >&2
+    echo ""
+    return 1
+}
+
 write_port(){
   if [ -f "$PORT_FILE" ]; then
     if [ -n "$ARG_PORT" ]; then
@@ -332,9 +355,15 @@ write_port(){
 }
 
 write_hostlist(){
+  # По умолчанию список перезаписывается версией из скрипта (скрипт качается
+  # с сервера), старое сохраняется в .bak-<дата>. --keep-files отменяет.
   if [ -f "$HOSTS_FILE" ]; then
-    log_warn "Hostlist уже есть, не перезаписан: $HOSTS_FILE"
-    return 0
+    if [ -n "$KEEP_FILES" ]; then
+      log_warn "Hostlist уже есть и --keep-files задан, не перезаписан: $HOSTS_FILE"
+      return 0
+    fi
+    bak=$(backup_file "$HOSTS_FILE")
+    [ -n "$bak" ] && log_warn "Hostlist обновляется из скрипта, предыдущий сохранён: $bak"
   fi
   run_root "mkdir -p '$DIR'"
   cat > /tmp/byedpi-hosts.$$ <<'EOL'
@@ -422,13 +451,17 @@ EOL
     *)         run_root "tee '$HOSTS_FILE' > /dev/null < /tmp/byedpi-hosts.$$" ;;
   esac
   rm -f /tmp/byedpi-hosts.$$
-  log_ok "Создан hostlist: $HOSTS_FILE"
+  log_ok "Hostlist записан: $HOSTS_FILE"
 }
 
 write_rule(){
   if [ -f "$RULE_FILE" ]; then
-    log_ok "Правило уже есть, не перезаписано: $RULE_FILE"
-    return 0
+    if [ -n "$KEEP_FILES" ]; then
+      log_ok "Правило уже есть и --keep-files задан, не перезаписано: $RULE_FILE"
+      return 0
+    fi
+    bak=$(backup_file "$RULE_FILE")
+    [ -n "$bak" ] && log_warn "Правило обновляется, предыдущее сохранено: $bak"
   fi
   if [ -z "$NO_TEST" ]; then
     best=$(test_strategies "$HOSTS_FILE")
@@ -804,6 +837,21 @@ case "$ACTION" in
   off)    cmd_off ;;
   test)   cmd_test ;;
   check)  cmd_check ;;
+  update)
+    install_packages
+    write_hostlist
+    write_rule
+    write_conf
+    write_launcher
+    write_units
+    daemon_restart
+    if [ -n "$KEEP_FILES" ]; then
+      log_ok "Launcher и юниты обновлены. Hostlist/rule оставлены как были (--keep-files)."
+    else
+      log_ok "Обновлено: hostlist, правило desync, launcher и юниты."
+    fi
+    echo "Проверить результат: $0 --check"
+    ;;
   install)
     install_packages
     write_port
@@ -819,6 +867,8 @@ case "$ACTION" in
     echo "Каталог:  $DIR"
     echo "Правка:   nano $DIR/hosts (или rule/port); перезапуск демона: $LAUNCHER"
     echo "Пересборка правила: $0 --test"
+    echo "Обновить конфиги из свежего скрипта: $0 --update"
+    echo "Не трогать существующие hosts/rule: добавьте --keep-files"
     [ "$SCOPE" = "user" ] && [ "$METHOD" = "extension" ] && echo "Автозапуск при входе включён. Для запуска без входа в сессию: su -s /bin/sh -c 'loginctl enable-linger $USER' root"
     ;;
 esac
