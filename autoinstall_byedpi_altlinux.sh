@@ -185,9 +185,15 @@ install_packages(){
 # ---------------------------------------------------------------------------
 # Автотест стратегий
 # ---------------------------------------------------------------------------
-probe_direct(){ # домен -> 0, если открывается "как есть" (без прокси)
-    code=$(curl -k -sS -m 6 -o /dev/null -w '%{http_code}' "https://$1/" 2>/dev/null)
-    [ -n "$code" ] && [ "$code" != "000" ]
+probe_direct(){ # домен -> 0, если открывается "как есть" (без прокси).
+    # 3 попытки: часть блокировок статистическая (DPI смотрит не все потоки).
+    i=0
+    while [ $i -lt 3 ]; do
+        code=$(curl -k -sS -m 8 -o /dev/null -w '%{http_code}' "https://$1/" 2>/dev/null)
+        [ -n "$code" ] && [ "$code" != "000" ] && return 0
+        i=$((i+1)); sleep 0.5
+    done
+    return 1
 }
 
 # Минимальный набор доменов, который обязан открываться:
@@ -772,9 +778,19 @@ cmd_check(){
   [ -f "$RULE_FILE" ] && echo "Правило: $(cat "$RULE_FILE")"
   echo
   for h in $TEST_PROBES; do
-    code=$(curl -k -sS -m 8 -o /dev/null -w '%{http_code}' "https://$h/" 2>/dev/null)
+    # 3 попытки: DPI бывает статистическим и открывает не каждый поток
+    i=0; code=""
+    while [ $i -lt 3 ]; do
+      code=$(curl -k -sS -m 8 -o /dev/null -w '%{http_code}' "https://$h/" 2>/dev/null)
+      [ -n "$code" ] && [ "$code" != "000" ] && break
+      i=$((i+1)); sleep 0.5
+    done
     if [ -n "$code" ] && [ "$code" != "000" ]; then
-      printf '  %-30s OK (%s)\n' "$h" "$code"
+      if [ $i -gt 0 ]; then
+        printf '  %-30s OK с %d-й попытки (%s) — фильтрация статистическая\n' "$h" "$((i+1))" "$code"
+      else
+        printf '  %-30s OK (%s)\n' "$h" "$code"
+      fi
       continue
     fi
     inlist=no
@@ -783,17 +799,17 @@ cmd_check(){
       grep -qE "^[[:space:]]*${re}([[:space:]]*\$|[[:space:]]*#)" "$HOSTS_FILE" 2>/dev/null && inlist=yes
     fi
     if [ "$inlist" = yes ]; then
-      printf '  %-30s FAIL (домен есть в hosts, правило не помогает)\n' "$h"
+      printf '  %-30s FAIL 3/3 (домен есть в hosts) — desync не помогает\n' "$h"
     elif probe_direct "$h"; then
       printf '  %-30s FAIL (напрямую открывается, но домена нет в hosts)\n' "$h"
     else
-      printf '  %-30s FAIL (и напрямую не открывается — вероятна блокировка по IP)\n' "$h"
+      printf '  %-30s FAIL 3/3 — блок по IP или по отпечатку ClientHello (JA3)\n' "$h"
     fi
   done
   echo
   echo "Подсказка: если домен открывается напрямую (curl без прокси) — добавьте его"
-  echo "в $HOSTS_FILE и перезапустите демон. Если не открывается вообще —"
-  echo "блокировка идёт по IP, desync/SNI её не снимает, нужен другой доступ."
+  echo "в $HOSTS_FILE и перезапустите демон. Если FAIL 3/3 и напрямую, то"
+  echo "блокируют либо по IP, либо по TLS-отпечатку (JA3) — desync/SNI не поможет."
   exit 0
 }
 
