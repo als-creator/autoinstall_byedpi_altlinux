@@ -34,7 +34,7 @@ usage(){
   --extension     метод extension: SOCKS-прокси для браузерного расширения
   --test          перезапустить автотест стратегий и обновить rule
   --check         проверить минимальный набор доменов (rutracker/nnm-club/
-                  youtube/rutor) и сказать, что именно не открывается
+                  youtube/discord) и сказать, что именно не открывается
   --no-test       пропустить автотест стратегий при установке
   --keep-files    не трогать существующие hosts/rule (по умолчанию они
                   перезаписываются версией из скрипта, старое -> .bak-<дата>)
@@ -224,7 +224,7 @@ probe_direct(){ # домен -> 0, если открывается "как ес�
 # Минимальный набор доменов, который обязан открываться:
 #   rutor / rutracker / nnm-club / youtube
 # Именно по нему выбирается правило desync.
-TEST_PROBES="rutracker.org nnmclub.to www.youtube.com i.ytimg.com yt3.googleusercontent.com rutor.info"
+TEST_PROBES="rutracker.org nnmclub.to www.youtube.com i.ytimg.com yt3.googleusercontent.com discord.com"
 
 TEST_RULES="\
 long-strategy|-d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -r1+s -S -a1 -As -d1 -d3+s -s6+s -d9+s -s12+s -d15+s -s20+s -d25+s -s30+s -d35+s -S -a1
@@ -463,7 +463,16 @@ flibusta.is
 flibusta.info
 linkedin.com
 t.co
-x.com
+# --- Заблокированные сервисы и медиа ---------------------------------------
+# Проверено на живом провайдере: без desync соединение не устанавливается
+# (curl = 000), с текущим правилом открываются.
+signal.org
+meduza.io
+te-st.org
+svoboda.org
+currenttime.tv
+novayagazeta.eu
+ovdinfo.org
 EOL
   case "$HOSTS_FILE" in
     "$HOME"/*) tee "$HOSTS_FILE" > /dev/null < /tmp/byedpi-hosts.$$ ;;
