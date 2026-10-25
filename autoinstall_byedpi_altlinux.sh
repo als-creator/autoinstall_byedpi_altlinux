@@ -579,9 +579,9 @@ ExecStart=/bin/sh -c '\
 iptables -t filter -N $QCHAIN 2>/dev/null || true; \
 iptables -t filter -F $QCHAIN; \
 iptables -t filter -A $QCHAIN $QMATCH -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable; \
-iptables -t filter -C OUTPUT -j $QCHAIN 2>/dev/null || iptables -t filter -A OUTPUT -j $QCHAIN'
+while iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null; do :; done; iptables -t filter -A OUTPUT -j $QCHAIN'
 ExecStop=/bin/sh -c '\
-iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null || true; \
+while iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null; do :; done; \
 iptables -t filter -F $QCHAIN 2>/dev/null || true; \
 iptables -t filter -X $QCHAIN 2>/dev/null || true'
 
@@ -599,7 +599,7 @@ remove_quic_unit(){
   run_root "systemctl disable --now $QUNIT 2>/dev/null || true"
   run_root "rm -f /etc/systemd/system/$QUNIT.service"
   run_root "systemctl daemon-reload"
-  run_root "iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null || true"
+  run_root "while iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null; do :; done"
   run_root "iptables -t filter -F $QCHAIN 2>/dev/null || true"
   run_root "iptables -t filter -X $QCHAIN 2>/dev/null || true"
 }
@@ -703,8 +703,12 @@ iptables -t nat -A $IHOSTS -m owner --uid-owner $UID_NUM -d 172.16.0.0/12 -j RET
 iptables -t nat -A $IHOSTS -m owner --uid-owner $UID_NUM -d 192.168.0.0/16 -j RETURN; \
 iptables -t nat -A $IHOSTS -m owner --uid-owner $UID_NUM -d 169.254.0.0/16 -j RETURN; \
 iptables -t nat -A $IHOSTS -m owner --uid-owner $UID_NUM -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports "\$P"; \
+while iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null; do :; done; \
 iptables -t nat -A OUTPUT -j $IHOSTS'
-ExecStop=/bin/sh -c 'iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null || true; iptables -t nat -F $IHOSTS 2>/dev/null || true; iptables -t nat -X $IHOSTS 2>/dev/null || true'
+ExecStop=/bin/sh -c '\
+while iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null; do :; done; \
+iptables -t nat -F $IHOSTS 2>/dev/null || true; \
+iptables -t nat -X $IHOSTS 2>/dev/null || true'
 
 [Install]
 WantedBy=multi-user.target
@@ -766,8 +770,8 @@ EOF
       QUIC_START=""
       QUIC_STOP=""
       if [ "$BLOCK_QUIC" = "yes" ]; then
-        QUIC_START="    iptables -t filter -N $QCHAIN 2>/dev/null || true; iptables -t filter -F $QCHAIN; iptables -t filter -A $QCHAIN $QMATCH -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable; iptables -t filter -C OUTPUT -j $QCHAIN 2>/dev/null || iptables -t filter -A OUTPUT -j $QCHAIN"
-        QUIC_STOP="  iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null || true; iptables -t filter -F $QCHAIN 2>/dev/null || true; iptables -t filter -X $QCHAIN 2>/dev/null || true"
+        QUIC_START="    iptables -t filter -N $QCHAIN 2>/dev/null || true; iptables -t filter -F $QCHAIN; iptables -t filter -A $QCHAIN $QMATCH -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable; while iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null; do :; done; iptables -t filter -A OUTPUT -j $QCHAIN"
+        QUIC_STOP="  while iptables -t filter -D OUTPUT -j $QCHAIN 2>/dev/null; do :; done; iptables -t filter -F $QCHAIN 2>/dev/null || true; iptables -t filter -X $QCHAIN 2>/dev/null || true"
       fi
       cat > /tmp/byedpi-initd.$$ <<EOF
 #!/bin/sh
@@ -789,6 +793,7 @@ start(){
     iptables -t nat -A "\$IHOSTS" -d 192.168.0.0/16 -j RETURN
     iptables -t nat -A "\$IHOSTS" -d 169.254.0.0/16 -j RETURN
     iptables -t nat -A "\$IHOSTS" -p tcp -m owner ! --uid-owner 0 -m multiport --dports 80,443 -j REDIRECT --to-ports "\$P"
+    while iptables -t nat -D OUTPUT -j "\$IHOSTS" 2>/dev/null; do :; done
     iptables -t nat -A OUTPUT -j "\$IHOSTS"
 $QUIC_START
   fi
@@ -796,7 +801,7 @@ $QUIC_START
 stop(){
   [ -f /run/byedpi.pid ] && kill \$(cat /run/byedpi.pid) 2>/dev/null
   rm -f /run/byedpi.pid
-  iptables -t nat -D OUTPUT -j "\$IHOSTS" 2>/dev/null || true
+  while iptables -t nat -D OUTPUT -j "\$IHOSTS" 2>/dev/null; do :; done
   iptables -t nat -F "\$IHOSTS" 2>/dev/null || true
   iptables -t nat -X "\$IHOSTS" 2>/dev/null || true
 $QUIC_STOP
@@ -836,8 +841,12 @@ iptables -t nat -A $IHOSTS -d 172.16.0.0/12 -j RETURN; \
 iptables -t nat -A $IHOSTS -d 192.168.0.0/16 -j RETURN; \
 iptables -t nat -A $IHOSTS -d 169.254.0.0/16 -j RETURN; \
 iptables -t nat -A $IHOSTS -p tcp -m owner ! --uid-owner 0 -m multiport --dports 80,443 -j REDIRECT --to-ports "\$P"; \
+while iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null; do :; done; \
 iptables -t nat -A OUTPUT -j $IHOSTS'
-ExecStop=/bin/sh -c 'iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null || true; iptables -t nat -F $IHOSTS 2>/dev/null || true; iptables -t nat -X $IHOSTS 2>/dev/null || true'
+ExecStop=/bin/sh -c '\
+while iptables -t nat -D OUTPUT -j $IHOSTS 2>/dev/null; do :; done; \
+iptables -t nat -F $IHOSTS 2>/dev/null || true; \
+iptables -t nat -X $IHOSTS 2>/dev/null || true'
 
 [Install]
 WantedBy=multi-user.target
@@ -917,12 +926,14 @@ cmd_off(){
   run_root "rm -f /etc/systemd/system/byedpi.service /etc/systemd/system/byedpi-$UID_NUM.service /etc/systemd/system/byedpi-redirect.service /etc/systemd/system/byedpi-redirect-$UID_NUM.service /etc/systemd/system/byedpi-quic.service /etc/systemd/system/byedpi-quic-$UID_NUM.service; systemctl daemon-reload 2>/dev/null || true"
   run_root "rm -f /etc/init.d/byedpi"
 
-  run_root "iptables -t nat -D OUTPUT -j BYEDPI 2>/dev/null || true"
-  run_root "iptables -t nat -D OUTPUT -j BYEDPI_HOSTS 2>/dev/null || true"
-  run_root "iptables -t nat -D OUTPUT -j BYEDPI_$UID_NUM 2>/dev/null || true"
-  run_root "iptables -t nat -F BYEDPI 2>/dev/null || true; iptables -t nat -F BYEDPI_HOSTS 2>/dev/null || true; iptables -t nat -F BYEDPI_$UID_NUM 2>/dev/null || true; iptables -t nat -X BYEDPI 2>/dev/null || true; iptables -t nat -X BYEDPI_HOSTS 2>/dev/null || true; iptables -t nat -X BYEDPI_$UID_NUM 2>/dev/null || true"
+  # Снять ВСЕ ссылки на цепочки: за время работы юнит мог добавить их
+  # несколько раз (каждый restart), а -D удаляет только одно вхождение.
+  # Если оставить хоть одну, REDIRECT уведёт трафик в мёртвый порт.
+  for c in $IHOSTS BYEDPI BYEDPI_HOSTS BYEDPI_$UID_NUM BYEDPI_HOSTS_$UID_NUM; do
+    run_root "while iptables -t nat -D OUTPUT -j $c 2>/dev/null; do :; done; iptables -t nat -F $c 2>/dev/null || true; iptables -t nat -X $c 2>/dev/null || true"
+  done
   for c in BYEDPI_QUIC BYEDPI_QUIC_$UID_NUM; do
-    run_root "iptables -t filter -D OUTPUT -j $c 2>/dev/null || true; iptables -t filter -F $c 2>/dev/null || true; iptables -t filter -X $c 2>/dev/null || true"
+    run_root "while iptables -t filter -D OUTPUT -j $c 2>/dev/null; do :; done; iptables -t filter -F $c 2>/dev/null || true; iptables -t filter -X $c 2>/dev/null || true"
   done
 
   run_root "rm -rf /etc/byedpi $LAUNCHER /usr/local/bin/byedpi"
