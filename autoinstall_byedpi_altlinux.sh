@@ -38,6 +38,8 @@ usage(){
   --no-test       пропустить автотест стратегий при установке
   --keep-files    не трогать существующие hosts/rule (по умолчанию они
                   перезаписываются версией из скрипта, старое -> .bak-<дата>)
+  --keep-package  не удалять пакет byedpi при --off (по умолчанию удаляется
+                  вместе с сервисом и конфигом)
   --block-quic    блокировать UDP 443 (QUIC): браузер сразу идёт по TCP через
                   ByeDPI, без чёрного экрана на время таймаута HTTP/3
                   (по умолчанию включено для transparent)
@@ -64,6 +66,7 @@ SCOPE=""           # system | user
 METHOD=""          # ipset | extension
 ACTION="install"   # install | update | off | status | test | check
 KEEP_FILES=""      # --keep-files: не перезаписывать существующие hosts/rule
+KEEP_PACKAGE=""    # --keep-package: не удалять пакет byedpi при --off
 BLOCK_QUIC=""      # yes|no; пусто — взять из conf или по умолчанию (transparent: yes)
 ARG_PORT=""
 NO_TEST=""
@@ -80,6 +83,7 @@ for a in "$@"; do
     --check)    ACTION=check ;;
     --update|--upgrade) ACTION=update ;;
     --keep-files) KEEP_FILES=1 ;;
+    --keep-package) KEEP_PACKAGE=1 ;;
     --block-quic) BLOCK_QUIC=yes ;;
     --allow-quic) BLOCK_QUIC=no ;;
     --no-test)    NO_TEST=1 ;;
@@ -94,7 +98,7 @@ done
 
 if [ "$ACTION" = "install" ]; then
   [ -z "$SCOPE" ] && SCOPE=system
-  [ -z "$METHOD" ] && METHOD=extension
+  [ -z "$METHOD" ] && METHOD=ipset
 fi
 UID_NUM=$(id -u)
 
@@ -937,10 +941,18 @@ cmd_off(){
   done
 
   run_root "rm -rf /etc/byedpi $LAUNCHER /usr/local/bin/byedpi"
+  if [ -z "$KEEP_PACKAGE" ]; then
+    run_root "apt-get remove -y byedpi >/dev/null 2>&1 || true"
+    run_root "rm -f /usr/local/bin/ciadpi"
+  fi
   rm -rf "$HOME/.config/byedpi"
   run_root "rm -f /etc/sysconfig/byedpi /etc/byedpi-hosts.txt /usr/local/bin/byedpi-hosts-update.sh /usr/local/bin/byedpi-hosts-update-$UID_NUM.sh"
   rm -f "$HOME/.config/byedpi.conf" "$HOME/.config/byedpi-hosts.txt"
-  echo "ByeDPI отключён. Конфиги и hostlist удалены."
+  if [ -z "$KEEP_PACKAGE" ]; then
+    echo "ByeDPI отключён. Конфиги, правила и пакет byedpi удалены."
+  else
+    echo "ByeDPI отключён. Конфиги и правила удалены, пакет byedpi оставлен (--keep-package)."
+  fi
   exit 0
 }
 

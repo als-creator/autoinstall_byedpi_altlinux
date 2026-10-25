@@ -3,11 +3,35 @@
 Автоматический установщик и конфигуратор **ByeDPI** для ALT Linux
 (проверялось на Sisyphus, p10+ / p11).
 
-Установка одной командой:
+## Быстрый старт
+
+Основная установка — **без расширения** (`ipset`: весь TCP 80/443 идёт через
+ByeDPI, фильтр по SNI, в браузере ничего настраивать не нужно):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh
 ```
+
+Режим с расширением (SOCKS-прокси для браузера):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --extension
+```
+
+Статус, перепроверка и удаление:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --status
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --check
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --off
+```
+
+`--off` удаляет сервисы, правила iptables, конфиги **и сам byedpi** (пакет
+`byedpi-bin` / `byedpi` или скачанный `ciadpi`). Оставить пакет:
+`--off --keep-package`.
+
+> Запускать можно и через `sh /tmp/byedpi-alt.sh` — `chmod +x` нужен только для
+> прямого запуска вида `/tmp/byedpi-alt.sh --status`.
 
 ---
 
@@ -62,6 +86,10 @@ DPI (Deep Packet Inspection) провайдера. Он не подменяет 
 
 ## Установка
 
+> По умолчанию (без флагов) ставится режим **ipset** — без расширения:
+> весь TCP 80/443 идёт через ByeDPI с фильтром по SNI, браузер настраивать
+> не нужно. Режим с расширением включается флагом `--extension`.
+
 ### Требования
 
 - ALT Linux (Sisyphus, p10/p11) с доступом в интернет.
@@ -74,7 +102,7 @@ DPI (Deep Packet Inspection) провайдера. Он не подменяет 
 пользователя) и **как использовать** (ipset или расширение):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh
 ```
 
 ### Установка с флагами (без вопросов)
@@ -84,25 +112,25 @@ curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altl
 **Вариант 1. Для всех пользователей, без расширений (только домены из hostlist):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --system --ipset
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --system --ipset
 ```
 
 **Вариант 2. Для всех пользователей, SOCKS-прокси для расширения браузера:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --system --extension
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --system --extension
 ```
 
 **Вариант 3. Только для текущего пользователя, без расширений:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --user --ipset
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --user --ipset
 ```
 
 **Вариант 4. Только для текущего пользователя, SOCKS-прокси для расширения браузера:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --user --extension
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --user --extension
 ```
 
 > **Какой вариант выбрать?**
@@ -126,19 +154,19 @@ curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altl
 Показать, что установлено и работает ли демон:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --status
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --status
 ```
 
 ### Полное отключение (удаление правил и сервисов)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --off
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --off
 ```
 
 Команда `--off` останавливает и удаляет сервисы, правила iptables/ipset (и
-system-, и user-режимов), таймеры и конфиг-каталоги `/etc/byedpi` /
-`~/.config/byedpi`, а также чистит следы старых версий
-(`/etc/sysconfig/byedpi` и пр.).
+system-, и user-режимов), таймеры, конфиг-каталоги `/etc/byedpi` /
+`~/.config/byedpi`, пакет `byedpi` (или скачанный `ciadpi`) и следы старых
+версий (`/etc/sysconfig/byedpi` и пр.). Оставить пакет — `--off --keep-package`.
 
 > После `--off` установить ByeDPI заново можно обычной командой установки.
 
@@ -340,7 +368,7 @@ sudo systemctl restart byedpi
 больше всего из них:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && sh /tmp/byedpi-alt.sh --test
+curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altlinux/main/autoinstall_byedpi_altlinux.sh -o /tmp/byedpi-alt.sh && chmod +x /tmp/byedpi-alt.sh && /tmp/byedpi-alt.sh --test
 ```
 
 Пропустить автоподбор при установке можно флагом `--no-test`.
@@ -348,7 +376,7 @@ curl -fsSL https://raw.githubusercontent.com/als-creator/autoinstall_byedpi_altl
 Проверить, что открывается прямо сейчас:
 
 ```bash
-sh /tmp/byedpi-alt.sh --check
+/tmp/byedpi-alt.sh --check
 ```
 
 | вердикт | что означает | что делать |
